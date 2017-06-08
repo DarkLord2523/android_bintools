@@ -1,0 +1,54 @@
+#!/bin/bash
+#    Copyright (C) 2017  Jonathan Jason Dennis [Meticulus]
+#					theonejohnnyd@gmail.com
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source common.cfg
+
+PATCHPATH=${1}
+
+if [[ "$PATCHPATH" == "" ]]; then
+exit
+fi
+
+echo "_______________________________"
+echo ""
+
+while read line;
+do
+
+if [[ "$line" == "From "* ]]; then
+	line=$(echo $line | sed 's/From /Previous From /g')
+fi
+if [[ "$line" == "Date: "* ]]; then
+	line=$(echo $line | sed 's/Date: /Previous Date: /g')
+fi
+if [[ "$line" == "From: "* ]]; then
+	line=$(echo $line | sed 's/From: /Previous From: /g')
+fi
+if [[ "$line" == "Subject: "* ]]; then
+	line=$(echo $line | sed 's/Subject: /Previous Subject: /g')
+fi
+
+if [[ "$line" == "---" ]]; then
+	break
+fi
+
+echo "*$line"
+
+done < $PATCHPATH
+
+echo ""
+

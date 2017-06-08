@@ -1,0 +1,70 @@
+#!/bin/bash
+#    Copyright (C) 2017  Jonathan Jason Dennis [Meticulus]
+#					theonejohnnyd@gmail.com
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source common.cfg
+
+PATCHNAME=$(clparser msg ${@})
+##PATCHNAME=$(echo "$PATCHNAME" | sed 's/ /_/g')
+ADD=$(clparser add ${@})
+FILENAME=$(clparser filename ${@})
+ROM=$(clparser rom ${@})
+TOP=$(getTop)
+PATCHDIR=$(getDevice)/patches
+
+checkerror $? "No target device? Did you lunch?" -fatal
+
+while [[ ! -e .git ]];
+do
+	cd ../
+	if [[ "$PWD" == "/" ]]; then
+		echo "REPO not found; abort"
+		exit 9
+	fi
+done
+REPO=".${PWD#$TOP}"
+if [[ "$ROM" == "" ]]; then
+	#TODO: need to ask here common or rom!
+	ROM=$(getRom)
+fi
+if [[ "$ADD" != "" ]]; then
+	git add $ADD
+else
+	git add -A .
+fi
+PREVHEAD=$(getHead)
+if [[ "$FILENAME" != "" ]]; then
+	git commit -m "\"$PATCHNAME $(getpatchmessage $TOP/$PATCHDIR/$ROM/$REPO/$FILENAME)\""
+	checkerror $? "Problem with creating commmit! ABORT!" -fatal
+else
+	mkdir -p $TOP/$PATCHDIR/common/$REPO
+	git commit
+fi
+NEWHEAD=$(getHead)
+if [[ "$PREVHEAD" == "$NEWHEAD" ]]; then
+	checkerror 1 "Head is stil the same? ABORT!" -fatal
+fi
+git format-patch HEAD~1
+
+if [[ "$FILENAME" == "" ]]; then
+	mv -v *.patch $TOP/$PATCHDIR/common/$REPO
+	checkerror $? "Could not move file!"
+else
+	mv -v *.patch $TOP/$PATCHDIR/$ROM/$REPO/$FILENAME
+	checkerror $? "Could not move file!"
+fi       
+git reset HEAD~1
+

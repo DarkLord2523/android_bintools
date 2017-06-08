@@ -1,0 +1,6 @@
+#!/bin/bash
+
+ROM=$(getRom)
+echo $los
+los=$(getTop)
+echo $los

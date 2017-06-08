@@ -1,0 +1,38 @@
+#!/bin/bash
+#    Copyright (C) 2017  Jonathan Jason Dennis [Meticulus]
+#					theonejohnnyd@gmail.com
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source common.cfg
+
+if [[ $TARGET_PRODUCT == "" ]]; then
+	checkerror 1 "No TARGET_PRODUCT env var found. Did you lunch?" -fatal
+fi
+
+DEVICE=$(echo $TARGET_PRODUCT | cut -d "_" -f2)
+
+if [[ "$DEVICE" == "" ]]; then
+	checkerror 1 "No DEVICE from TARGET_PRODUCT env var found. Did you lunch?" -fatal
+fi
+TOP=$(getTop)
+
+
+cd $TOP
+
+DEVICEDIR=$(find -L device -type d -name $DEVICE)
+if [[ $DEVICEDIR == "" ]]; then
+	checkerror 9 "$DEVICE device tree path not found!" -fatal
+fi
+echo $DEVICEDIR

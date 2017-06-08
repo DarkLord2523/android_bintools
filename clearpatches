@@ -1,0 +1,107 @@
+#!/bin/bash
+#    Copyright (C) 2017  Jonathan Jason Dennis [Meticulus]
+#					theonejohnnyd@gmail.com
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+THISDIR=$PWD
+ROM=${1}
+UNATTENDED=${2}
+TOPDIR=$(getTop)
+DONE=""
+PATCHDIR=""
+
+source common.cfg
+
+if [[ "$ROM" == "" ]]; then
+	ROM=$(getRom)
+fi
+
+cd $TOPDIR
+
+THISDIR=$PWD
+
+clearpatchset() {
+
+for DIR in $(ls -d */)
+do
+
+cd $DIR
+
+checkerror $? "$PWD/$DIR does not exist!?"
+
+for LINE in $(find -L -name '*.patch') $(find -L -name '*.apply') $(find -L -name '*.disabled') $(find -L -name '*.applydisabled')
+do
+  	REPO=$(trimdotslash $(dirname $LINE))
+
+	if [[ $DONE ==  *"|$REPO|"* ]] ; then continue;fi
+
+	cd $TOPDIR
+
+	if [[ ! -e $REPO ]]; then
+
+		checkerror 1 "$REPO does not exist; skipping"
+
+		continue
+	fi
+
+	cd $REPO
+
+	if [[ ! -e .git ]]; then 
+
+		checkerror 1 "$PWD is not a git repo; skipping"
+
+		continue
+	 fi
+
+	git add . > /dev/null
+
+	checkerror $? "Could not git add .!" -fatal
+
+	git stash > /dev/null
+
+	checkerror $? "Could not git stash!" -fatal
+
+
+	git clean -f
+
+	checkerror $? "Could not git clean!" -fatal
+
+	git stash clear > /dev/null
+
+	checkerror $? "Could not git stash clear?" -fatal
+
+	DONE="$DONE|$REPO|"
+
+        mecho "$REPO cleaned."
+
+	cd $PATCHDIR
+done
+
+	cd $PATCHDIR
+
+done
+
+}
+
+for LINE in $(find -L device -type d -name 'patches')
+do
+	cd $LINE
+	PATCHDIR=$PWD
+	mecho ""
+	mecho "clearing patches from - $LINE"
+	mecho ""
+	clearpatchset
+	cd $THISDIR
+done

@@ -1,0 +1,171 @@
+#!/bin/bash
+#    Copyright (C) 2017  Jonathan Jason Dennis [Meticulus]
+#					theonejohnnyd@gmail.com
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source common.cfg
+
+PATCHES[0]=""
+
+ACTIONS[0]="Work on it"
+ACTIONS[1]="Replace it"
+ACTIONS[2]="Disable it"
+ACTIONS[3]="Enable it"
+
+SELCTION=""
+REPO=$(clparser repo ${@})
+ROM=$(getRom)
+TOP=$(getTop)
+ALL=$(clparser all ${@})
+PATCHDIR=$(getDevice)/patches
+
+checkerror $? "Could not getDevice!" -fatal
+
+ACTIONS[4]="Move to $ROM"
+ACTIONS[5]="Move to common"
+
+POS=0
+listdir() {
+	if [[ -e $TOP/$PATCHDIR/${1}/$REPO ]]; then
+		cd $TOP/$PATCHDIR/${1}/$REPO
+		mecho "##   REPO: $REPO   ROM: ${1}"
+		mecho ""
+		for LINE in $(find -name '*.*' | sort )
+		do
+    			if [[ "$LINE" == "." ]]; then continue;fi
+			if [[ ! $ALL -eq 1 ]] && [[ "$LINE" == *".patch" ]] || [[ "$LINE" == *".apply" ]]; then
+    				PATCHES[$POS]=${1}/$REPO/$LINE
+    				mecho "$POS <- $(basename ${PATCHES[$POS]})"
+    				POS=$[$POS + 1]
+			else
+    				PATCHES[$POS]=${1}/$REPO/$LINE
+    				mecho  "$POS <- $(basename ${PATCHES[$POS]})"
+    				POS=$[$POS + 1]
+			fi
+		done
+		mecho ""
+	fi
+}
+
+
+if [[ "$REPO" == "" ]]; then
+	REPO=$(getRepo)
+	checkerror $? "Could not getRepo!" -fatal
+fi
+
+mecho ""
+
+THISDIR=$PWD
+##REPO=".${$TOP#$TOP}"
+
+listdir meticulus
+listdir $ROM
+listdir common 
+
+mecho "Select the one you want to work with (q) to quit"
+read NUMBER
+
+if [[ "$NUMBER" == "q" ]]; then
+   exit
+elif [[ $NUMBER -lt ${#PATCHES[@]} ]] && [[ $NUMBER =~ ^-?[0-9]+$ ]]; then
+    SELECTION="${PATCHES[$NUMBER]}"
+    mecho "Selected $SELECTION"
+else
+    mecho "Invalid selection! Try again"
+    sleep 1
+    cd $THISDIR
+    ${0}
+fi
+cd $THISDIR
+PATCHTYPE=$(patchtype $SELECTION)
+POS=0
+for LINE in "${ACTIONS[@]}"
+do
+    mecho  "$POS \t ${ACTIONS[$POS]}"
+    POS=$[$POS + 1]
+done
+
+echo "What would you like to do (q) for quit"
+read NUMBER
+
+if [[ "$NUMBER" == "q" ]]; then
+   exit
+elif [[ $NUMBER -lt ${#ACTIONS[@]} ]] && [[ $NUMBER =~ ^-?[0-9]+$ ]]; then
+    if [[ $NUMBER -eq 0 ]]; then #WORK ON IT
+	cd $THISDIR
+	clearrepo
+	checkerror $? "Could not clearrepo" -fatal
+	if [[ $PATCHTYPE -eq 1 ]]; then
+		patch --no-backup-if-mismatch -p1 < $TOP/$PATCHDIR/$SELECTION
+		git status
+	elif [[ $PATCHTYPE -eq 2 ]]; then
+		git apply --reject $TOP/$PATCHDIR/$SELECTION
+		git status
+	else
+		checkerror 1 "Not a valid patch" -fatal
+	fi
+    elif [[ $NUMBER -eq 1 ]]; then #REPLACE IT
+	FILENAME=$(basename $SELECTION)
+	FILENAME="${FILENAME%.*}"
+	EXT=""
+	if [[ $PATCHTYPE == 1 ]]; then
+		EXT=".patch"
+	elif [[ $PATCHTYPE == 2 ]]; then
+		EXT=".apply"
+	fi
+	git status
+	ROM=$(echo $SELECTION | cut -d '/' -f1)
+	makepatch msg="$FILENAME" filename=$FILENAME$EXT rom=$ROM
+	mecho $FILENAME$EXT
+	git status
+    elif [[ $NUMBER -eq 2 ]]; then #DISABLE IT
+	OLDFILENAME=""
+	NEWFILENAME=""
+	if [[ $PATCHTYPE -eq 1 ]]; then
+	    NEWFILENAME=$TOP/$PATCHDIR/$(echo $SELECTION | sed 's/.patch/.disabled/g')
+            OLDFILENAME=$TOP/$PATCHDIR/$SELECTION
+	elif [[ $PATCHTYPE -eq 2 ]]; then
+	    NEWFILENAME=$TOP/$PATCHDIR/$(echo $SELECTION | sed 's/.apply/.applydisabled/g')
+            OLDFILENAME=$TOP/$PATCHDIR/$SELECTION
+	else
+	    checkerror 1 "Can't disable this patch" -fatal
+	fi
+	    
+	mv -v $OLDFILENAME $NEWFILENAME
+	checkerror $? "Could not rename patch" -fatal
+     elif [[ $NUMBER -eq 3 ]]; then
+	OLDFILENAME=""
+	NEWFILENAME=""
+	if [[ $PATCHTYPE -eq 3 ]]; then
+	    NEWFILENAME=$TOP/$PATCHDIR/$(echo $SELECTION | sed 's/.disabled/.patch/g')
+            OLDFILENAME=$TOP/$PATCHDIR/$SELECTION
+	elif [[ $PATCHTYPE -eq 4 ]]; then
+	    NEWFILENAME=$TOP/$PATCHDIR/$(echo $SELECTION | sed 's/.applydisabled/.apply/g')
+            OLDFILENAME=$TOP/$PATCHDIR/$SELECTION
+	else
+	    checkerror 1 "Can't enable this patch!" -fatal
+	fi
+
+	mv -v $OLDFILENAME $NEWFILENAME
+	checkerror $? "Can't rename this patch!" -fatal
+    fi
+
+else
+    checkerror 1 "Invalid selection.. Retry"
+    sleep 1
+    cd $THISDIR
+    ${0}
+fi
+

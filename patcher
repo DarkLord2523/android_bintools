@@ -1,0 +1,232 @@
+#!/bin/bash
+#    Copyright (C) 2017  Jonathan Jason Dennis [Meticulus]
+#					theonejohnnyd@gmail.com
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+THISDIR=$PWD
+ROM=$(clparser rom ${@})
+UNATTENDED=$(clparser auto ${@})
+THISREPO=$(clparser repo ${@})
+QUIET=$(clparser quiet ${@})
+TEST=$(clparser t ${@})
+TOPDIR=$(getTop)
+REJECT=$(clparser rej ${@})
+DEBUG=$(clparser debug ${@})
+PATCHFATAL=""
+EXTRAPARAMS=""
+PATCHDIR=$(getDevice)/patches
+EXITCODE=0
+
+DONEPATCHES=""
+
+if [[ $TEST -eq 1 ]]; then
+	PATCHFATAL=""
+fi
+
+cd $TOPDIR
+
+source common.cfg
+
+if [[ $DEBUG -gt 0 ]]; then
+	mecho "THISDIR = $THISDIR"
+	mecho "ROM = $ROM"
+	mecho "THISREPO =  $THISREPO"
+	mecho "TOPDIR = $TOPDIR"
+	sleep 10
+fi
+if [[ "$ROM" == "" ]]; then
+	ROM=$(getRom)
+	clearpatches
+	checkerror $? "Could not clearpatches!" -fatal
+fi
+
+dopatches() {
+
+cd $TOPDIR/$PATCHDIR
+
+THISDIR=$PWD
+
+local ROM=${1}
+
+cd $ROM
+
+checkerror $? "$PWD/$ROM does not exist!?" -fatal
+
+if [[ "$ROM" != "common" ]] && [[ -e common_exclude ]]; then
+	DONEPATCHES="$DONEPATCHES $(cat common_exclude)"
+fi
+
+mecho ""
+mecho $PWD
+mecho ""
+if [[ "$THISREPO" != "" ]]; then
+	if [[ -e $THISREPO ]]; then
+	    cd $THISREPO
+	else
+	    cd $THISDIR
+	    return
+	fi
+fi
+
+for LINE in $(find -L -name '*.patch' | sort )
+do
+	LINE=$(trimdotslash $LINE)
+	REPO=""
+	PATCH=""
+	if [[ "$THISREPO" != "" ]]; then
+		PATCH=$THISDIR/$ROM/$THISREPO/$LINE
+		REPO=$THISREPO
+	else
+		PATCH=$THISDIR/$ROM/$LINE
+		REPO=$(dirname $LINE)
+	fi
+
+        if [[ "$(basename $PATCH)" == *critical* ]];then
+	    PATCHFATAL="-fatal"
+	else
+	    PATCHFATAL=""
+	fi
+
+        if [[ "$REJECT" == "" ]];then
+	    EXTRAPARAMS="--reject-file=-"
+	else
+	    EXTRAPARAMS=""
+	fi
+
+	cd $TOPDIR
+	if [[ ! -e $REPO ]]; then 
+		checkerror 1 "$REPO does not exist; skipping"
+		continue
+	fi
+	cd $REPO
+	if [[ ! -e .git ]]; then 
+		checkerror 1 "$PWD is not a git repo; skipping"
+		continue
+	fi
+
+	if [[ "$DONEPATCHES" == *"|$LINE|"* ]]; then
+		checkerror 1 "$(basename $LINE) has already been applied; skipping"
+		continue
+	fi
+
+	if [[ "$(echo $REPO | cut -d / -f1)" == "device" ]]; then
+		checkerror 1 "$LINE would have patched the device tree!!!" -fatal
+	fi
+
+	patch -p1 --follow-symlinks --no-backup-if-mismatch  $EXTRAPARAMS < $PATCH &> /dev/null
+
+	if [[ $? -gt 0 ]]; then
+
+		EXITCODE=9
+
+		checkerror 1 "PATCH FAILED!!! $PATCH" $PATCHFATAL
+
+		cd $THISDIR
+
+		continue
+
+	fi
+
+	DONEPATCHES="$DONEPATCHES|$LINE|)"
+	
+	if [[ ! $QUIET -gt 0 ]]; then
+		mecho "applied -> $PATCH" 
+	else
+	   	mecho "patch applied to $REPO"
+	fi
+
+	cd $THISDIR
+done
+
+cd $THISDIR
+
+cd $ROM
+
+checkerror $? "$PWD/$ROM does not exist!?"
+
+if [[ "$THISREPO" != "" ]]; then
+	cd $THISREPO
+fi
+
+for LINE in $(find -L -name '*.apply' | sort )
+do
+	LINE=$(trimdotslash $LINE)
+	REPO=""
+	PATCH=""
+	if [[ "$THISREPO" != "" ]]; then
+		PATCH=$THISDIR/$ROM/$THISREPO/$LINE
+		REPO=$THISREPO
+	else
+		PATCH=$THISDIR/$ROM/$LINE
+		REPO=$(dirname $LINE)
+	fi
+
+        if [[ "$(basename $PATCH)" == *critical* ]];then
+	    PATCHFATAL="-fatal"
+	else
+	    PATCHFATAL=""
+	fi
+
+	cd $TOPDIR
+	if [[ ! -e $REPO ]]; then 
+		checkerror 1 "$REPO does not exist; skipping"
+		continue
+	fi
+	cd $REPO
+	if [[ ! -e .git ]]; then 
+		checkerror 1 "$PWD is not a git repo; skipping"
+		continue
+	fi
+
+	if [[ "$DONEPATCHES" == *"$(basename $LINE)"* ]]; then
+		checkerror 1 "$(basename $LINE) has already been applied; skipping"
+		continue
+	fi
+	
+        git apply --whitespace=nowarn --reject $PATCH &> /dev/null
+	
+	if [[ $? -gt 0 ]]; then
+
+		EXITCODE=9
+
+		checkerror 1 "APPLY FAILED!!! $PATCH" $PATCHFATAL
+
+	fi
+
+	DONEPATCHES="$DONEPATCHES $(basename $LINE)"
+
+	if [[ ! $QUIET -gt 0 ]]; then
+		mecho "applied -> $PATCH" 
+	else
+	   	mecho "patch applied to $REPO"
+	fi
+	
+	cd $THISDIR
+done
+
+}
+if [[ -e $PATCHDIR/meticulus ]]; then
+    dopatches "meticulus"
+fi
+dopatches $ROM
+
+dopatches "common"
+
+exit $EXITCODE
+
+#cd $THISDIR
+#if [[ "$ROM" != "common" ]];then
+#	${0} rom=common repo=$THISREPO auto=$UNATTENDED debug=$DEBUG quiet=$QUIET
+#fi
