@@ -24,7 +24,7 @@ ACTIONS[1]="Replace it"
 ACTIONS[2]="Disable it"
 ACTIONS[3]="Enable it"
 
-SELCTION=""
+SELECTION=""
 REPO=$(clparser repo ${@})
 ROM=$(getRom)
 TOP=$(getTop)
@@ -160,7 +160,17 @@ elif [[ $NUMBER -lt ${#ACTIONS[@]} ]] && [[ $NUMBER =~ ^-?[0-9]+$ ]]; then
 
 	mv -v $OLDFILENAME $NEWFILENAME
 	checkerror $? "Can't rename this patch!" -fatal
-    fi
+     elif [[ $NUMBER -eq 4 ]]; then
+	NEWSELECTION=$(echo $SELECTION | sed "s/common\//$ROM\//")
+	DESTDIR=$(echo $NEWSELECTION | sed "s/$(basename $NEWSELECTION)//")
+	mkdir -pv $TOP/$PATCHDIR/$DESTDIR
+	mv -v  $TOP/$PATCHDIR/$SELECTION  $TOP/$PATCHDIR/$NEWSELECTION
+     elif [[ $NUMBER -eq 5 ]]; then
+	NEWSELECTION=$(echo $SELECTION | sed "s/$ROM\//common\//")
+	DESTDIR=$(echo $NEWSELECTION | sed "s/$(basename $NEWSELECTION)//")
+	mkdir -pv $TOP/$PATCHDIR/$DESTDIR
+	mv -v  $TOP/$PATCHDIR/$SELECTION  $TOP/$PATCHDIR/$NEWSELECTION
+     fi
 
 else
     checkerror 1 "Invalid selection.. Retry"
