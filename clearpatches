@@ -67,7 +67,7 @@ do
 
 	git add . > /dev/null
 
-	checkerror $? "Could not git add .!" -fatal
+	checkerror $? "$REPO :Could not git add .!" -fatal
 
 	git stash > /dev/null
 

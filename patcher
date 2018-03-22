@@ -99,8 +99,8 @@ do
 	    PATCHFATAL=""
 	fi
 
-        if [[ "$(basename $PATCH)" == *meticulus* ]] && [[ "$I_AM_METICULUS" != true ]]; then
-	    checkerror 1 "Skipping $(basename $PATCH): You are not Meticulus."
+        if [[ "$(basename $PATCH)" == *meticulus* ]] && [[ "$I_AM_CODEOFHONOR" != true ]]; then
+	    checkerror 1 "Skipping $(basename $PATCH): You are not Code of Honor."
 	    continue;
 	fi
 
@@ -126,7 +126,7 @@ do
 		continue
 	fi
 
-	if [[ "$(echo $REPO | cut -d / -f1)" == "device" ]]; then
+	if [[ "$(echo $REPO | cut -d / -f1)" == "device" ]] && [[ $( echo $REPO | grep -c $(getDevice)) -gt 0 ]]; then
 		checkerror 1 "$LINE would have patched the device tree!!!" -fatal
 	fi
 

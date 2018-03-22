@@ -27,7 +27,17 @@ cd vendor
 
 checkerror $? "$PWD/vendor does not exist!" -fatal
 
-if [[ -e cm ]]; then
+if [[ -e lineage ]]; then
+
+    if [[ "$(cat cm/README.mkdn)" == *"Resurrection Remix"* ]]; then
+
+	echo "rr"
+    else
+
+    	echo "lineage" 
+    fi
+
+elif [[ -e cm ]]; then
 
     if [[ "$(cat cm/README.mkdn)" == *"Resurrection Remix"* ]]; then
 
@@ -35,7 +45,12 @@ if [[ -e cm ]]; then
     else
 
     	echo "cm" 
+
     fi
+
+elif [[ -e rr ]]; then
+
+    echo "rr"
 
 elif [[ -e beanstalk ]]; then
 
@@ -60,6 +75,15 @@ elif [[ -e slim ]]; then
 elif [[ -e omni ]]; then
 
     echo "omni"
+
+elif [[ -e validus ]]; then
+
+    echo "validus"
+
+elif [[ -e gzosp ]]; then
+
+    echo "gz"
+
 
 else
 

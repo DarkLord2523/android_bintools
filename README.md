@@ -1,77 +1,77 @@
-# Meticulus's Android Bin Tools
+mkbootimg_tools
+===============
 
-## Description
-Various tools and prebuilts I use in the course of developing and build android roms on UbuntuMate 14.04 LTS.
+HOW TO USE:
+-----------
 
-### Patch System
-The patch system works by having a patchset in the $devicetree/patches. In this folder is a "common" folder and various "$rom" folders. Each recreates the directory structure from the "$TOP" of the AOSP source with corresponding patches inside. The "patcher" tool will find all these patches and apply them to the correct repo. Other tools are there to help make it easy to create and modifiy patches quickly. Each "$rom" folder should hold patches that are specific to that rom. I.E. lineage folder for lineage and slim for slim. The "common" folder is used for patches that apply to all roms. This makes it possible to build several AOSP based ROMs using the same branch of the same tree.
+### Unpack boot/recovery(.img) support dtb(dt.img):
+		./mkboot name.img namefolderout
 
-EXAMPLE: https://github.com/Meticulus/android_device_huawei_hi6250/tree/master/patches
+	EXAMPLE
+		./mkboot recoveryksuamg5.img ksuamg
+		Unpack & decompress recoveryksuamg5.img to ksuamg
+		  kernel         : /home/xiaolu/work/initramfs/s4/e330s/ksuamg5/zImage
+		  ramdisk        : /home/xiaolu/work/initramfs/s4/e330s/ksuamg5/ramdisk.gz
+		  page_size      : 2048
+		  base_addr      : 0x00000000
+		  kernel size    : 6911360
+		  kernel_addr    : 0x00008000
+		  ramdisk_size   : 2685222
+		  ramdisk_addr   : 0x02000000
+		  second_size    : 0
+		  second_addr    : 0x00f00000
+		  dtb_size       : 1427456
+		  tags_addr      : 0x01e00000
+		  cmdline        : console=null androidboot.hardware=qcom user_debug=31 maxcpus=2 msm_rtb.filter=0x3F
+		Unpack completed.
 
-NOTE: All patches should be cleared before repo sync'ing. Use "clearpatches". Then "patcher" to re-apply after repo sync'ing.
+### Repack boot/recovery(.img) support dtb(dt.img):
+		./mkboot namefolderout newimgname.img
+
+	EXAMPLE
+		./mkboot ksuamg5 recovery.img
+		mkbootimg from ksuamg5/img_info.
+		  kernel         : /home/xiaolu/work/initramfs/s4/e330s/ksuamg5/zImage
+		  ramdisk        : /home/xiaolu/work/initramfs/s4/e330s/ksuamg5/new_ramdisk.gz
+		  page_size      : 
+		  base_addr      : 0x00000000
+		  kernel size    : 6911360
+		  kernel_addr    : 0x00008000
+		  ramdisk_size   : 2685222
+		  ramdisk_addr   : 0x02000000
+		  second_size    : 
+		  second_addr    : 
+		  dtb_size       : 1427456
+		  dtb_img        : dt.img
+		  tags_addr      : 0x01e00000
+		  cmdline        : console=null androidboot.hardware=qcom user_debug=31 maxcpus=2 msm_rtb.filter=0x3F
+		Kernel size: 6911360, new ramdisk size: 3416778, recovery.img: 11759616.
+		recovery.img has been created.
+		...
+
+### Create a dt.img:
+		yourkernelsources/scripts/dtbTool -s 2048 -o arch/arm/boot/dt.img -p scripts/dtc/ arch/arm/boot/
+
+	EXAMPLE
+		SHV-E330S_JB_Opensource/Kernel$ scripts/dtbTool -s 2048 -o arch/arm/boot/dt.img -p scripts/dtc/ arch/arm/boot/
+		DTB combiner:
+		  Input directory: '/media/diskd/kernel/SHV-E330S_JB_Opensource/Kernel/arch/arm/boot/'
+		  Output file: '/media/diskd/kernel/SHV-E330S_JB_Opensource/Kernel/arch/arm/boot/dt.img'
+		Found file: msm8974-sec-ks01-r03.dtb ... chipset: 2114015745, platform: 3, rev: 0
+		Found file: msm8974-sec-ks01-r07.dtb ... chipset: 2114015745, platform: 7, rev: 0
+		Found file: msm8974-sec-ks01-r06.dtb ... chipset: 2114015745, platform: 6, rev: 0
+		Found file: msm8974-sec-ks01-r04.dtb ... chipset: 2114015745, platform: 4, rev: 0
+		Found file: msm8974-sec-ks01-r11.dtb ... chipset: 2114015745, platform: 11, rev: 0
+		Found file: msm8974-sec-ks01-r02.dtb ... chipset: 2114015745, platform: 2, rev: 0
+		Found file: msm8974-sec-ks01-r00.dtb ... chipset: 2114015745, platform: 0, rev: 0
+		Found file: msm8974-sec-ks01-r05.dtb ... chipset: 2114015745, platform: 5, rev: 0
+		Found file: msm8974-sec-ks01-r01.dtb ... chipset: 2114015745, platform: 1, rev: 0
+		=> Found 9 unique DTB(s)
+
+		Generating master DTB... completed
 
 
-## License
-Any tools written by me are subject to the AGPL. Other prebuilt tools are subject to their own licenses.
+### dtbToolCM support dt-tag & dtb v2/3(https://github.com/CyanogenMod/android_device_qcom_common/tree/cm-13.0/dtbtool):
 
-## Setup
-I keep these in ~/bin and add them to the PATH variable.
-```bash
-git clone https://github.com/Meticulus/android_bintools -b master ~/bin
-```
+ 	dtbToolCM -s 2048 -d "htc,project-id = <" -o arch/arm/boot/dt.img -p scripts/dtc/ arch/arm/boot/
 
-Add ~/bin to the PATH variable.
-```bash
-echo PATH=~/bin:$PATH
-```
-
-For a more permanent solution:
-```bash
-echo "PATH=~/bin:\$PATH" >> ~/.bashrc
-```
-
-## Session Setup
-Before using these tools you should have the typical build android build environment setup.
-```bash
-. build/envsetup.sh
-lunch your_buildtarget-buildvariant
-```
-
-## Workflow
-
-### Create a patch
-cd to the repo you wish to patch and clear the repo of all patches first.
-```bash
-clearrepo
-```
-
-Make your modifications and then create the patch
-```bash
-makepatch
-```
-
-Re-patch the repo including the patch you just created
-```bash
-patchrepo
-```
-
-### Fix a patch
-cd to the repo you wish to patch and clear the repo of all patches first.
-```bash
-clearrepo
-```
-Select the broken patch and type its number. Then type 0 for "Work on it"
-```bash
-listpatch
-```
-
-Use git status to see the .rej files and make the appropriate changes. Then use listpatch to replace the old one with the new.
-Type 1 for "Replace it".
-```bash
-listpatch
-```
-
-Re-patch the repo including the patch you just created
-```bash
-patchrepo
-```
